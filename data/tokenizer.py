@@ -44,6 +44,23 @@ class Tokenizer():
         if self.max_len > self.supported_max_len:
             assert "The length you have requested is too long."
     
+    # function for Masked Language Modeling
+    # "ENCODE" = "tokenize" + "convert token to id" + "truncation & padding" + "Transform to Tensor"
+    def tokenize(self, batch_sentence):
+        return self.tokenizer.tokenize(batch_sentence)
+
+    # function for Masked Language Modeling
+    # "ENCODE" = "tokenize" + "convert token to id" + "truncation & padding" + "Transform to Tensor"
+    def convert_tokens_to_ids(self, token):
+        return self.tokenizer.convert_tokens_to_ids(token)
+
+    # function for Masked Language Modeling
+    def get_mask_token(self):
+        return self.tokenizer.mask_token
+
+    def get_mask_token_idx(self):
+        return self.convert_tokens_to_ids(self.get_mask_token)
+    
     def encode(self, batch_sentences):
         return self.tokenizer(batch_sentences, padding="max_length", truncation=True, return_tensors="pt", max_length=self.max_len)
 

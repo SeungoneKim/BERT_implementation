@@ -1,10 +1,10 @@
 def get_Pretrain_dataloader(train_batch_size, val_batch_size, test_batch_size,
                 language, max_len, 
-                dataset_name, dataset_type, split_type, category_type, 
+                dataset_name, dataset_type, split_type, category_type, next_sent_prob,
                 percentage=None):
 
     dataset = PretrainDataset_total(language, max_len, 
-                dataset_name, dataset_type, split_type, category_type, 
+                dataset_name, dataset_type, split_type, category_type, next_sent_prob
                 percentage)
     
     train_dataloader = DataLoader(dataset=dataset.getTrainData(),

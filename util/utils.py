@@ -155,4 +155,3 @@ def load_bestmodel(load_path):
     best_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     return best_model, best_optimizer
-

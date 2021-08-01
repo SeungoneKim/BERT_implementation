@@ -31,7 +31,16 @@ class NaturalLanguageUnderstandingHead(nn.Module):
         self.linear_layer = nn.Linear(model_dim, vocab_size)
     
     def forward(self, encoder_output):
-        return F.log_softmax(self.linear_layer(encoder_output),dim=-1)
+        return F.log_softmax(self.linear_layer(encoder_output),dim=-1) # [bs,sl,vocab_size]
+
+class NextSentencePredictionHead(nn.Module):
+    def __init__(self):
+        super(NextSentencePredictionHead,self).__init__()
+        self.linear_layer = nn.Linear(model_dim,2)
+    
+    def forward(self, encoder_output):
+        output = self.linear_layer(encoder_output) # [bs,sl,2]
+        return output[:,0,:] # [bs,2] -> [CLS] token also performs as a sentence embedding
 
 class BERTModel(nn.Module):
     def __init__(self, pad_idx, mask_idx, cls_idx, sep_idx, unk_idx,
@@ -47,12 +56,14 @@ class BERTModel(nn.Module):
 
         self.Encoder = Encoder(vocab_size, max_len, model_dim, key_dim, value_dim, hidden_dim, num_head, num_layer, drop_prob, device)
         self.NLUHead = NaturalLanguageUnderstandingHead(vocab_size, model_dim)
+        self.NSPHead = NextSentencePredictionHead()
 
     def forward(self, input_ids, token_type_ids, attention_mask):
         encoder_output = self.Encoder(input_ids, token_type_ids, attention_mask)
-        output = self.NLUHead(encoder_output)
+        mlm_output = self.NLUHead(encoder_output)
+        nsp_output = self.NSPHead(encoder_output)
 
-        return self.NLUHead(encoder_output)
+        return (mlm_output,nsp_output)
     
     # applying mask(opt) : 0s are where we apply masking
     def generate_padding_mask(self, query, key, query_pad_type=None, key_pad_type=None):
