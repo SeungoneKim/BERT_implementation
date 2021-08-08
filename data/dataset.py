@@ -1,10 +1,11 @@
 from datasets import load_dataset, list_datasets # huggingface library
 from tokenizer import Tokenizer
 import random
+from torch.utils.data import Dataset
 
 class PretrainDataset(Dataset):
     def __init__(self, language, max_len, 
-                dataset_name, dataset_type, split_type, category_type, next_sent_prob, masking_prob
+                dataset_name, dataset_type, split_type, category_type, next_sent_prob, masking_prob,
                 percentage=None):
         
         if dataset_name not in list_datasets():
@@ -26,6 +27,9 @@ class PretrainDataset(Dataset):
         self.data = data[category_type]
         self.tokenizer = Tokenizer(language, max_len)
         self.mask_token = self.tokenizer.mask_token
+        self.max_len = max_len
+        if self.max_len != self.tokenizer.max_len:
+            assert "The max len you gave to Dataset does not match with tokenizer's max len!"
         
     def __len__(self):
         return self.data_len
@@ -67,7 +71,7 @@ class PretrainDataset(Dataset):
                     prob /= 0.15
                     # With 80% probability, convert the token into [MASK]
                     if prob < 0.8:
-                        input_ids.append(self.tokenizer.get_mask_token_idx)
+                        input_ids.append(self.tokenizer.get_mask_token_idx())
                     # with 10% probability, convert into a random token
                     elif prob < 0.9:
                         tmp_rand_idx = random.randrange(self.tokenizer.get_vocab_size())
@@ -103,8 +107,8 @@ class PretrainDataset(Dataset):
 
             # truncation
             total_length = input_ids1_length + input_ids2_length + 3
-            if total_length > self.tokenizer.max_len:
-                max_len_per_input_ids = int(self.tokenizer.max_len-3 / 2)
+            if total_length > self.max_len:
+                max_len_per_input_ids = int(self.max_len-3 / 2)
                 if input_ids1_length > max_len_per_input_ids:
                     input_ids1 = input_ids1[:max_len_per_input_ids]
                     label_ids1 = label_ids1[:max_len_per_input_ids]
@@ -123,28 +127,29 @@ class PretrainDataset(Dataset):
             
             # padding
             # should perform padding even after truncation because 1 or 2 spaces might be shorter than max length
-            input_ids = [self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token)] + input_ids1 + 
-                        [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)] + input_ids2 + 
+            input_ids = [self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token)] + input_ids1 + \
+                        [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)] + input_ids2 + \
                         [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)]
             
-            label_ids = [self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token)] + label_ids1 + 
-                        [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)] + label_ids2 + 
+            label_ids = [self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token)] + label_ids1 + \
+                        [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)] + label_ids2 + \
                         [self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)]
 
             total_length = len(input_ids)
-            pad_length = self.tokenizer.max_len - total_length
-            input_ids = input_ids + [self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token) * pad_length]
-            label_ids = label_ids + [self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token) * pad_length]
+            pad_length = self.max_len - total_length
+            input_ids = input_ids + [self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)] * pad_length
+            label_ids = label_ids + [self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)] * pad_length
             
             # convert attention mask
-            attention_mask = [1] + attention_mask1 + [1] + attention_mask2 + [1] + [0 * pad_length]
+            attention_mask = [1] + attention_mask1 + [1] + attention_mask2 + [1] + [0] * pad_length
 
             # build token_type_ids 
-            token_type_ids1 = [0 * (input_ids1_length)] 
-            token_type_ids2 = [1 * (input_ids2_length)]
-            token_type_ids = [0] + token_type_ids1 + [0] + token_type_ids2 + [1] + [0 * pad_length]
+            token_type_ids1 = [0] * (input_ids1_length) 
+            token_type_ids2 = [1] * (input_ids2_length)
+            token_type_ids = [0] + token_type_ids1 + [0] + token_type_ids2 + [1] + [0] * pad_length
             
             # transform to tensor
+
             input_ids = torch.Tensor(input_ids)
             label_ids = torch.Tensor(label_ids)
             attention_mask = torch.Tensor(input_ids)
@@ -155,7 +160,9 @@ class PretrainDataset(Dataset):
         # "ENCODE" = "tokenize" + "convert token to id" + "truncation & padding" + "Transform to Tensor"
         masked_data1, data1, attention_mask1 = masking(data1)
         masked_data2, data2, attention_mask2 = masking(data2)
-        encoded_input_ids, encoded_label_ids, attention_mask, token_type_ids = Transformation_into_Tensor(masked_data1,masked_data2, attention_mask1, attention_mask2)
+        encoded_input_ids, encoded_label_ids, attention_mask, token_type_ids = Transformation_into_Tensor(
+            masked_data1, masked_data2, data1, data2, attention_mask1, attention_mask2
+        )
 
         # build batch
         batch = {}
@@ -168,18 +175,21 @@ class PretrainDataset(Dataset):
 
 class PretrainDataset_total():
     def __init__(self, language, max_len, 
-                dataset_name, dataset_type, split_type, category_type, next_sent_prob, masking_prob
-                percentage=None):
-        self.traindata = PretrainDataset( language, max_len, 
-                dataset_name, dataset_type, 'train', category_type, next_sent_prob, masking_prob
+                dataset_name, dataset_type, category_type, next_sent_prob, masking_prob,
+                training_ratio, validation_ratio, test_ratio, percentage=None):
+        self.data = PretrainDataset( language, max_len, 
+                dataset_name, dataset_type, 'train', category_type, next_sent_prob, masking_prob,
                 percentage)
-        self.valdata = PretrainDataset( language, max_len, 
-                dataset_name, dataset_type, 'validation', category_type, next_sent_prob, masking_prob
-                percentage)
-        self.testdata = PretrainDataset( language, max_len, 
-                dataset_name, dataset_type, 'test', category_type, next_sent_prob, masking_prob
-                percentage)
-    
+        self.total_length = len(self.data)
+        if training_ratio+validation_ratio+test_ratio>1.0:
+            assert "Unproper split of training, validation, test ratio!"
+        
+        train_len = int(self.total_length*training_ratio)
+        val_len = int(self.total_length*validation_ratio)
+        test_len = self.total_length - train_len - val_len
+        self.traindata, self.valdata, self.testdata = torch.utils.data.random_split(self.data, 
+            [train_len, val_len, test_len]
+        )
     def getTrainData(self):
         return self.traindata
     
@@ -231,7 +241,7 @@ class FineTuneDataset(Dataset):
 
 class FineTuneDataset_total():
     def __init__(self, language, max_len, 
-                dataset_name, dataset_type, split_type, category_type, 
+                dataset_name, dataset_type, category_type, 
                 x_name, y_name, percentage=None):
         self.traindata = FineTuneDataset(language, max_len, 
                         dataset_name, dataset_type, 'train', category_type, 
