@@ -31,10 +31,13 @@ class TransformerEmbedding(nn.Module):
         super(TransformerEmbedding,self).__init__()
         self.tok_emb = TokenEmbedding(vocab_size, model_dim)
         self.pos_emb = PositionalEncoding(model_dim, max_len, device)
-        self.drop_out = nn.Dropout(drop_prob)
+        self.seg_emb = nn.Embedding(2,model_dim)
+        self.tok_drop_out = nn.Dropout(drop_prob)
+        self.seg_drop_out = nn.Dropout(drop_prob)
     
-    def forward(self, tensor):
+    def forward(self, tensor, token_type_ids):
         tok_emb = self.tok_emb(tensor)
         pos_emb = self.pos_emb(tensor)
+        seg_emb = self.seg_emb(token_type_ids)
         
-        return self.drop_out(tok_emb+pos_emb)
+        return self.tok_drop_out(tok_emb) + self.seg_drop_out(seg_emb) + pos_emb

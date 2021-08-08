@@ -67,20 +67,20 @@ class Tokenizer():
     def encode_multiple(self, batch_sentences1, batch_sentences2):
         return self.tokenizer(batch_sentences1, batch_sentences2, padding="max_length", truncation=True, return_tensors="pt", max_length=self.max_len)
     
-    def encode_into_input_ids(self, batch_sentence):
+    def encode_into_input_ids(self, batch_sentences):
         return self.encode(batch_sentences)['input_ids']
     
     def encode_multiple_into_input_ids(self, batch_sentences1, batch_sentences2):
         return self.encode_multiple(batch_sentences1, batch_sentences2)['input_ids']
     
-    def encode_into_token_type_ids(self, batch_sentence):
+    def encode_into_token_type_ids(self, batch_sentences):
         return self.encode(batch_sentences)['token_type_ids']
     
     def encode_multiple_into_token_type_ids(self, batch_sentences1, batch_sentences2):
         return self.encode_multiple(batch_sentences1, batch_sentences2)['token_type_ids']
     
     def encode_into_attention_mask(self, batch_sentence):
-        return self.encode(batch_sentences)['attention_mask']
+        return self.encode(batch_sentence)['attention_mask']
     
     def encode_multiple_into_attention_mask(self, batch_sentences1, batch_sentences2):
         return self.encode_multiple(batch_sentences1, batch_sentences2)['attention_mask']

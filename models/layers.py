@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
+from models.attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
 
 class EncoderLayer(nn.Module):
     def __init__(self, model_dim, key_dim, value_dim, hidden_dim, num_head, drop_prob):

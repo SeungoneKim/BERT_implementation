@@ -92,6 +92,11 @@ class Finetune_Trainer():
         # build lossfn
         self.lossfn = load_lossfn(self.args.lossfn,self.args.dec_pad_idx)
 
+    def train_test(self):
+        best_model_epoch, training_history, validation_history = self.finetune()
+        best_model = self.test(best_model_epoch)
+        self.plot(training_history, validation_history)
+
     def finetune(self):
         # set logging        
         logging.basicConfig(level=logging.WARNING)

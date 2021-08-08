@@ -1,4 +1,5 @@
 from torch.utils.data import DataLoader, Dataset
+from data.dataset import PretrainDataset, PretrainDataset_total
 
 """
 book_train, book_val, book_test = get_Pretrain_dataloader(3,3,3,'en',128,'bookcorpus','plain_text','text',0.5,0.15,0.8,0.1,0.1)

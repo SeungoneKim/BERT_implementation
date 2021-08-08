@@ -1,5 +1,6 @@
+import torch
 from datasets import load_dataset, list_datasets # huggingface library
-from tokenizer import Tokenizer
+from data.tokenizer import Tokenizer
 import random
 from torch.utils.data import Dataset
 
@@ -40,9 +41,11 @@ class PretrainDataset(Dataset):
 
         # choosing idx of second sentence
         data2_idx = index+1
+        is_next = True
 
         # rechoosing idx of second sentence if it shouldn't be consecutive or is same with the first sentence
         if random.random() > self.next_sent_prob:
+            is_next=False
             while (data2_idx==index+1) or (data2_idx==index):
                 data2_idx = random.randint(0,self.data_len)
         
@@ -108,7 +111,7 @@ class PretrainDataset(Dataset):
             # truncation
             total_length = input_ids1_length + input_ids2_length + 3
             if total_length > self.max_len:
-                max_len_per_input_ids = int(self.max_len-3 / 2)
+                max_len_per_input_ids = int((self.max_len-3) / 2)
                 if input_ids1_length > max_len_per_input_ids:
                     input_ids1 = input_ids1[:max_len_per_input_ids]
                     label_ids1 = label_ids1[:max_len_per_input_ids]
@@ -166,10 +169,14 @@ class PretrainDataset(Dataset):
 
         # build batch
         batch = {}
-        batch['input_ids'] = encoded_input_ids
-        batch['labels'] = encoded_label_ids
-        batch['attention_mask'] = attention_mask 
-        batch['token_type_ids'] = token_type_ids
+        batch['input_ids'] = encoded_input_ids.to(torch.long)
+        batch['label_ids'] = encoded_label_ids.to(torch.long)
+        batch['attention_mask'] = attention_mask.to(torch.long)
+        batch['token_type_ids'] = token_type_ids.to(torch.long)
+        if is_next:
+            batch['is_next'] = torch.Tensor([1]).to(torch.long)
+        else:
+            batch['is_next'] = torch.Tensor([0]).to(torch.long)
 
         return batch
 

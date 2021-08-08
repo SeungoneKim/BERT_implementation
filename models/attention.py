@@ -17,6 +17,7 @@ class ScaledDotProductAttention(nn.Module):
         
         # applying mask(opt) : 0s are where we apply masking
         if mask is not None:
+            mask = torch.einsum('bi,bj->bij',(mask,mask)) # (batch_size,sequence_length,sequence_length)
             mask = mask.unsqueeze(1) # (batch_size, 1, sequence_length, sequence_length)
             attention_score = attention_score.masked_fill(mask==0,-1e9)
         
@@ -38,7 +39,7 @@ class MultiHeadAttention(nn.Module):
         self.Wk = nn.Linear(model_dim, key_dim)
         self.Wv = nn.Linear(model_dim, value_dim)
         self.attention = ScaledDotProductAttention()
-        self.Wo = nn.Linear(model_dim, model_dim)
+        self.Wo = nn.Linear(value_dim, model_dim)
         
     def forward(self, query, key, value, mask=None):
         # linearly project queries, key and values
@@ -53,7 +54,7 @@ class MultiHeadAttention(nn.Module):
         
         # perform Scaled Dot Product Attention
         attention_output, attention_score = self.attention(multihead_query, multihead_key, multihead_value, mask=mask)
-        
+
         # concat output back to 3-dimensional tensor of (batch_size, sequence_length, hidden_size)
         output = self.multihead_concat(attention_output)
         output = self.Wo(output)
@@ -86,5 +87,5 @@ class FeedForward(nn.Module):
         self.dropout = nn.Dropout(drop_prob)
         
     def forward(self, tensor):
-        tensor = self.dropout(self.relu(self.linearlayer1(x)))
+        tensor = self.dropout(self.relu(self.linearlayer1(tensor)))
         return self.linearlayer2(tensor)

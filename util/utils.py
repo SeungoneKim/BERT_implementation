@@ -94,7 +94,7 @@ def convert_idx_to_word(idx_sent, vocab):
 def time_measurement(start_time, end_time):
     elapsed_time = end_time - start_time
     elapsed_mins = int(elapsed_time / 60)
-    elapsed_secs - int(elapsed_time - (elapsed_mins * 60))
+    elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
     
     return elapsed_mins, elapsed_secs
 
@@ -107,7 +107,7 @@ def save_checkpoint(model, optimizer, epoch, save_path):
     # saving state_dict of model and optimizer, and also saving epoch info
     torch.save({
         'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
+        'mlm_optimizer_state_dict': optimizer.state_dict(),
         'epoch': epoch
     },save_path)
 
