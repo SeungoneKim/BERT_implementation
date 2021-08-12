@@ -29,21 +29,23 @@ class NaturalLanguageUnderstandingHead(nn.Module):
     def __init__(self, vocab_size, model_dim):
         super(NaturalLanguageUnderstandingHead,self).__init__()
         self.linear_layer = nn.Linear(model_dim, vocab_size)
+        self.softmax = nn.LogSoftmax(dim=-1)
     
     def forward(self, encoder_output):
         # mask_position = [bs, tgt_size(15% of sent)]
-        mlm_prediction = self.linear_layer(encoder_output) # [bs,sl,vocab_size]
-
+        mlm_prediction = self.softmax(self.linear_layer(encoder_output)) # [bs,sl,vocab_size]
+        
         return mlm_prediction
 
 class NextSentencePredictionHead(nn.Module):
     def __init__(self, model_dim):
         super(NextSentencePredictionHead,self).__init__()
         self.linear_layer = nn.Linear(model_dim,2)
+        self.softmax = nn.LogSoftmax(dim=-1)
     
     def forward(self, encoder_output):
         cls_representation = encoder_output[:,0,:]      # [bs, model_dim]
-        nsp_prediction = F.log_softmax(self.linear_layer(cls_representation), dim=-1)  # [bs, 2]
+        nsp_prediction = self.softmax(self.linear_layer(cls_representation))  # [bs, 2]
         return nsp_prediction
 
 class BERTModel(nn.Module):

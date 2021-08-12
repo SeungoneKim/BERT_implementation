@@ -91,8 +91,9 @@ class Pretrain_Trainer():
         self.scheduler = load_scheduler(self.optimizer, self.factor, self.patience)
         
         # build lossfn
-        self.lossfn = load_lossfn(self.args.pretrain_lossfn,self.args.pad_idx)
-        
+        self.mlm_lossfn = load_lossfn(self.args.pretrain_lossfn,self.args.pad_idx)
+        self.nsp_lossfn = load_lossfn(self.args.pretrain_lossfn)
+
     def train_test(self):
         best_model_epoch, training_history, validation_history = self.pretrain()
         self.save_best_pretrained_model(best_model_epoch)
@@ -122,17 +123,19 @@ class Pretrain_Trainer():
 
         # set initial variables for model selection
         best_model_epoch=0
-        best_model_loss = float('inf')
+        best_model_mlm_loss = float('inf')
+        best_model_nsp_loss = float('inf')
+        best_model_total_loss = float('inf')
 
         # save information of the procedure of training
         training_history=[]
         validation_history=[]
 
         # predict when training will end based on average time
-        total_time_spent_secs = 0.0
+        total_time_spent_secs = 0
         
         # start of looping through training data
-        for epoch_idx in tqdm(range(self.n_epoch), desc='epoch'):
+        for epoch_idx in range(self.n_epoch):
             # measure time when epoch start
             start_time = time.time()
             
@@ -152,40 +155,40 @@ class Pretrain_Trainer():
             training_loss_per_epoch=0.0
 
             # train model using batch gradient descent with Adam Optimizer
-            for batch_idx, batch in tqdm(enumerate(self.train_dataloader), desc='step', total=len(self.train_dataloader)):
+            for batch_idx, batch in tqdm(enumerate(self.train_dataloader)):
                 # move batch of data to gpu
                 input_ids = batch['input_ids'].to(self.device)              #[bs, sl]
                 label_ids = batch['label_ids'].to(self.device)              #[bs, sl]
                 attention_mask = batch['attention_mask'].to(self.device)    #[bs, sl]
                 token_type_ids = batch['token_type_ids'].to(self.device)    #[bs, sl]
-                is_next = batch['is_next'].to(self.device)                  #[bs, 1] => 1 if next, 0 if not next
+                is_next = batch['is_next'].to(self.device)                  #[bs, 1]
 
                 # compute model output
                 # model_output_mlm = [bs, sl, vocab_size]
                 # model_output_nsp = [bs, 2]
-                model_output_mlm, model_output_nsp = self.model(input_ids, attention_mask, token_type_ids)
+                model_output_mlm, model_output_nsp = self.model(input_ids, attention_mask, token_type_ids)      # [bs,sl,vocab], [bs,2]
 
-                # reshape model output and labels for MLM Task
-                reshaped_model_output_mlm = model_output_mlm.contiguous().view(-1,model_output_mlm.shape[-1]) # [bs*sl,vocab]
-                reshaped_label_ids = label_ids.contiguous().view(-1) # [bs*sl]
+                # reshape model output and labels
+                reshaped_model_output_mlm = model_output_mlm.contiguous().view(-1,model_output_mlm.shape[-1])   # [bs*sl,vocab]
+                reshaped_label_ids = label_ids.contiguous().view(-1)                                            # [bs*sl]
+                reshaped_is_next = is_next.contiguous().view(-1)
                 
-                # compute loss using model output and labels for MLM Task(reshaped ver)
-                # clear gradients
+                # clear graidents
                 self.optimizer.zero_grad()
-
-                # compute loss using model output and labels for NSP Task
-                nsp_loss = self.lossfn(model_output_nsp, is_next)
-                mlm_loss = self.lossfn(reshaped_model_output_mlm, reshaped_label_ids)
+                
+                # compute loss using model output for MLM Task & NSP Task
+                nsp_loss = self.nsp_lossfn(model_output_nsp, reshaped_is_next)                                               # [bs,2] + [bs,1] => []
+                mlm_loss = self.mlm_lossfn(reshaped_model_output_mlm, reshaped_label_ids)
                 total_loss = nsp_loss + mlm_loss
 
-                # compute gradient with current batch
+                #compute gradient with current batch
                 total_loss.backward()
-                
+
                 # clip gradients
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(),self.clip)
+
                 # update gradients
                 self.optimizer.step()
-
 
                 # add loss to training_loss
                 training_loss_per_iteration_mlm = mlm_loss.item()
@@ -216,44 +219,44 @@ class Pretrain_Trainer():
             validation_loss_per_epoch=0.0 
 
             # validate model using batch gradient descent with Adam Optimizer
-            with torch.no_grad():
-                for batch_idx, batch in tqdm(enumerate(self.val_dataloader)):
-                    # move batch of data to gpu
-                    # move batch of data to gpu
-                    input_ids = batch['input_ids'].to(self.device)              #[bs, sl]
-                    label_ids = batch['label_ids'].to(self.device)              #[bs, sl]
-                    attention_mask = batch['attention_mask'].to(self.device)    #[bs, sl]
-                    token_type_ids = batch['token_type_ids'].to(self.device)    #[bs, sl]
-                    is_next = batch['is_next'].to(self.device)                  #[bs, 2]
+            for batch_idx, batch in tqdm(enumerate(self.val_dataloader)):
+                # move batch of data to gpu
+                input_ids = batch['input_ids'].to(self.device)              #[bs, sl]
+                label_ids = batch['label_ids'].to(self.device)              #[bs, sl]
+                attention_mask = batch['attention_mask'].to(self.device)    #[bs, sl]
+                token_type_ids = batch['token_type_ids'].to(self.device)    #[bs, sl]
+                is_next = batch['is_next'].to(self.device)                  #[bs, 1]
 
-                    # compute model output
-                    # model_output_mlm = [bs, sl, vocab_size]
-                    # model_output_nsp = [bs, 2]
-                    model_output_mlm, model_output_nsp = self.model(input_ids, attention_mask, token_type_ids)
+                # compute model output
+                # model_output_mlm = [bs, sl, vocab_size]
+                # model_output_nsp = [bs, 2]
+                model_output_mlm, model_output_nsp = self.model(input_ids, attention_mask, token_type_ids)          # [bs,sl,vocab], [bs,2]
+                
+                # reshape model output and labels for MLM Task
+                reshaped_model_output_mlm = model_output_mlm.contiguous().view(-1,model_output_mlm.shape[-1])       # [bs*sl,vocab]
+                reshaped_label_ids = label_ids.contiguous().view(-1)                                                # [bs*sl]
+                reshaped_is_next = is_next.contiguous().view(-1)                                                    # [bs]
 
-                    # reshape model output and labels for MLM Task
-                    reshaped_model_output_mlm = model_output_mlm.contiguous().view(-1,model_output_mlm.shape[-1]) # [bs*sl,vocab]
-                    reshaped_label_ids = label_ids.contiguous().view(-1) # [bs*sl]
+                # compute loss using model output and labels for NSP Task
+                nsp_loss = self.nsp_lossfn(model_output_nsp, reshaped_is_next)
+                mlm_loss = self.mlm_lossfn(reshaped_model_output_mlm, reshaped_label_ids)
+                total_loss = nsp_loss + mlm_loss
+                
+                # add loss to training_loss
+                validation_loss_per_iteration_mlm = mlm_loss.item()
+                validation_loss_per_iteration_nsp = nsp_loss.item()
+                validation_loss_per_iteration = total_loss.item()
+                validation_loss_per_epoch += validation_loss_per_iteration
 
-                    # compute loss using model output and labels for NSP Task
-                    nsp_loss = self.lossfn(model_output_nsp, is_next)
-                    mlm_loss = self.lossfn(reshaped_model_output_mlm, reshaped_label_ids)
-                    total_loss = nsp_loss + mlm_loss
-                    
-                    # add loss to training_loss
-                    validation_loss_per_iteration_mlm = mlm_loss.item()
-                    validation_loss_per_iteration_nsp = nsp_loss.item()
-                    validation_loss_per_iteration = total_loss.item()
-                    validation_loss_per_epoch += validation_loss_per_iteration
-                    
+            
             # save validation loss of each epoch, in other words, the average of every batch in the current epoch
             validation_mean_loss_per_epoch = validation_loss_per_epoch / validation_batch_num
             validation_history.append(validation_mean_loss_per_epoch)
 
-            
             # Display summaries of validation result after all validation is done
             sys.stdout.write(f"Validation Phase |  Epoch: {epoch_idx+1} | MLM loss : {validation_loss_per_iteration_mlm} | NSP loss : {validation_loss_per_iteration_nsp} | Total loss : {validation_mean_loss_per_epoch}")
             sys.stdout.write('\n')
+
 
             # Model Selection Process using validation_mean_score_per_epoch
             if (validation_mean_loss_per_epoch < best_model_loss):
@@ -342,3 +345,4 @@ class Pretrain_Trainer():
 
     def set_random(self, seed_num):
         set_random_fixed(seed_num)
+

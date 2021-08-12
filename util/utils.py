@@ -43,13 +43,16 @@ def load_metricfn(metric_type):
 
     return metric
 
-def load_lossfn(lossfn_type,ignore_idx):
+def load_lossfn(lossfn_type,ignore_idx=None):
     lossfn= None
     if lossfn_type in lossfn_list:
         if lossfn_type == 'BCELoss':
             lossfn = nn.BCELoss()
         elif lossfn_type == 'CrossEntropyLoss':
-            lossfn = nn.CrossEntropyLoss(ignore_index=ignore_idx)
+            if ignore_idx != None:
+                lossfn = nn.CrossEntropyLoss(ignore_index=ignore_idx)
+            else:
+                lossfn = nn.CrossEntropyLoss()
         elif lossfn_type == 'KLDivLoss':
             lossfn = nn.KLDivLoss()
         elif lossfn_type == 'BCEWithLogitsLoss':
@@ -59,7 +62,10 @@ def load_lossfn(lossfn_type,ignore_idx):
         elif lossfn_type == 'MSELoss':
             lossfn = nn.MSELoss()
         elif lossfn_type == 'NLLLoss':
-            lossfn = nn.NLLLoss()
+            if ignore_idx != None:
+                lossfn = nn.NLLLoss(ignore_index=ignore_idx)
+            else:
+                lossfn = nn.NLLLoss()
     
     return lossfn
 

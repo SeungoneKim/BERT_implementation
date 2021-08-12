@@ -48,7 +48,7 @@ parser.add_argument('--sep_idx',type=int, default=102)  # [SEP]
 parser.add_argument('--mask_idx',type=int,default=103) # [MASK]
 # trainer
 parser.add_argument('--metric',type=str, default='accuracy_score') # For Finetuning
-parser.add_argument('--pretrain_lossfn',type=str, default= 'CrossEntropyLoss')
+parser.add_argument('--pretrain_lossfn',type=str, default= 'NLLLoss')
 # dataloader
 # pretrain
 parser.add_argument('--pretrain_dataset_name',type=str, default='bookcorpus') # bookcorpus
