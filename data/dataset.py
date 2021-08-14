@@ -60,7 +60,7 @@ class PretrainDataset(Dataset):
             tokenized_data_len = len(tokenized_data)
             
             input_ids = []          # masked data
-            label_ids = []          # original data
+            label_ids = []          # original data => IMPORTANT : should set UNMASKED token to 0(to support MLM Loss function ignore_index)
             attention_mask = []     # attention_mask : 0 for [PAD], [MASK] tokens, 1 for other tokens
 
             # convert tokenized sentence into id & corrupt for MLM
@@ -83,12 +83,18 @@ class PretrainDataset(Dataset):
                     else:
                         input_ids.append(tmp_token_idx)
                     
+                    # Case of masked token, we put the original token to label_ids
+                    # In other words, Save the original uncorrupted data into label_ids
+                    label_ids.append(tmp_token_idx)
+                    
                 # With 85% probability, we do not corrupt the current token
                 else:
                     input_ids.append(tmp_token_idx)
-
-                # Save the original uncorrupted data into label_ids
-                label_ids.append(tmp_token_idx)
+                    # Case of UNMASKED token, we put the pad token to label_ids
+                    # THIS IS TO SUPPORT THE MLM LOSS FUNCTION'S ignore_index!!!!!!!!
+                    label_ids.append(self.tokenizer.get_pad_token_idx())
+                
+                # Whether masked or not, we always set attention mask to 1 (0 for only padded tokens later on Transformation_into_Tensor function)
                 attention_mask.append(1)
 
             return input_ids, label_ids, attention_mask

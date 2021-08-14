@@ -84,9 +84,9 @@ class FeedForward(nn.Module):
         
         self.linearlayer1 = nn.Linear(model_dim, hidden_dim)
         self.linearlayer2 = nn.Linear(hidden_dim, model_dim)
-        self.relu = nn.ReLU()
+        self.activation = nn.GELU()
         self.dropout = nn.Dropout(drop_prob)
         
     def forward(self, tensor):
-        tensor = self.dropout(self.relu(self.linearlayer1(tensor)))
+        tensor = self.dropout(self.activation(self.linearlayer1(tensor)))
         return self.linearlayer2(tensor)

@@ -8,11 +8,11 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer,self).__init__()
         
         self.attention = MultiHeadAttention(model_dim, key_dim, value_dim, num_head)
-        self.normalization1 = nn.LayerNorm(model_dim)
+        self.normalization1 = nn.GELU()
         self.dropout1 = nn.Dropout(drop_prob)
         
         self.ffn = FeedForward(model_dim, hidden_dim, drop_prob)
-        self.normalization2 = nn.LayerNorm(model_dim)
+        self.normalization2 = nn.GELU()
         self.dropout2 = nn.Dropout(drop_prob)
         
     def forward(self, tensor, source_mask):

@@ -38,14 +38,14 @@ class Pretrain_Trainer():
         self.display_examples = self.args.display_examples # testing
         
         self.lr = self.args.init_lr
-        self.eps = self.args.adam_eps
+        #self.eps = self.args.adam_eps
         self.weight_decay = self.args.weight_decay
         self.beta1 = self.args.adam_beta1
         self.beta2 = self.args.adam_beta2
 
-        self.warmup_steps = self.args.warm_up
-        self.factor = self.args.factor
-        self.patience = self.args.patience
+        self.num_warmup_steps = self.args.warm_up
+        #self.factor = self.args.factor
+        #self.patience = self.args.patience
         self.clip = self.args.clip
 
         self.language = self.args.language
@@ -72,6 +72,8 @@ class Pretrain_Trainer():
         self.train_batch_num = len(self.train_dataloader)
         self.val_batch_num = len(self.val_dataloader)
         self.test_batch_num = len(self.test_dataloader)
+
+        self.num_training_steps = (self.train_batch_num) * (self.n_epoch)
         
         self.t_total = self.train_batch_num * self.n_epoch
         
@@ -88,7 +90,7 @@ class Pretrain_Trainer():
                                         self.beta1, self.beta2, self.eps)
         
         # build scheduler
-        self.scheduler = load_scheduler(self.optimizer, self.factor, self.patience)
+        self.scheduler = load_scheduler(self.optimizer, self.num_warmup_steps, self.num_training_steps)
         
         # build lossfn
         self.mlm_lossfn = load_lossfn(self.args.pretrain_lossfn,self.args.pad_idx)

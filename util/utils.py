@@ -70,14 +70,17 @@ def load_lossfn(lossfn_type,ignore_idx=None):
     return lossfn
 
 # Adam Optimizer
-def load_optimizer(model, learning_rate, weight_decay, beta1, beta2, eps):
-    return optim.Adam(params=model.parameters(), lr=learning_rate, 
-                        weight_decay=weight_decay, betas=[beta1, beta2], eps=eps)
+def load_optimizer(model, learning_rate, weight_decay, beta1, beta2):
+    return optim.AdamW(params=model.parameters(), lr=learning_rate, 
+                        weight_decay=weight_decay, betas=[beta1, beta2])
 
 # Linear Scheduler with WarmUp
-def load_scheduler(optimizer, factor, patience):
-    
-    return optim.lr_scheduler.ReduceLROnPlateau(optimizer= optimizer, verbose=True, factor=factor, patience=patience)
+def load_scheduler(optimizer, num_warmup_steps, num_training_steps, last_epoch=-1):
+    def lr_lambda(current_step):
+        if current_step < num_warmup_steps:
+            return float(current_step) / float(max(1,num_warmup_steps))
+
+    return optim.lr_scheduler.LambdaLR(optimizer= optimizer, verbose=True, lr_lambda=lr_lambda, last_epoch=last_epoch)
 
 def initialize_weights(m):
     if hasattr(m, 'weight') and m.weight.dim() >1:

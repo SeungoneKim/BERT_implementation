@@ -60,6 +60,12 @@ class Tokenizer():
 
     def get_mask_token_idx(self):
         return self.convert_tokens_to_ids(self.get_mask_token())
+
+    def get_pad_token(self):
+        return self.tokenizer.pad_token
+
+    def get_pad_token_idx(self):
+        return self.convert_tokens_to_ids(self.get_pad_token())
     
     def encode(self, batch_sentences):
         return self.tokenizer(batch_sentences, padding="max_length", truncation=True, return_tensors="pt", max_length=self.max_len)
