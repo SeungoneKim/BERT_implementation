@@ -212,7 +212,7 @@ class PretrainDataset_total():
     def getTestData(self):
         return self.testdata
 
-class FineTuneDataset(Dataset):
+class FineTuneDataset_Atype(Dataset):
     def __init__(self, language, max_len, 
                 dataset_name, dataset_type, split_type, category_type, 
                 x_name, y_name, percentage=None):
@@ -252,25 +252,94 @@ class FineTuneDataset(Dataset):
         return batch
 
 
-class FineTuneDataset_total():
-    def __init__(self, language, max_len, 
-                dataset_name, dataset_type, category_type, 
-                x_name, y_name, percentage=None):
-        self.traindata = FineTuneDataset(language, max_len, 
-                        dataset_name, dataset_type, 'train', category_type, 
-                        x_name, y_name, percentage)
-        self.valdata = FineTuneDataset(language, max_len, 
-                        dataset_name, dataset_type, 'validation', category_type, 
-                        x_name, y_name, percentage)
-        self.testdata = FineTuneDataset(language, max_len, 
-                        dataset_name, dataset_type, 'test', category_type, 
-                        x_name, y_name, percentage)
+class FineTuneDataset_Btype(Dataset):
+    def __init__(self, language, max_len,
+                 dataset_name, dataset_type, split_type, category_type,
+                 x_name_1, x_name_2, y_name, percentage=None):
+
+        if dataset_name not in list_datasets():
+            assert ('Not available in HuggingFace datasets')
+
+        if percentage is None:
+            data = load_dataset(dataset_name, dataset_type, split=split_type)
+        else:
+            data = load_dataset(dataset_name, dataset_type, split=f'{split_type}[:{percentage}%]')
+
+        self.x_name_1 = x_name_1
+        self.x_name_2 = x_name_2
+        self.y_name = y_name
+        self.data_len = len(data)  # number of data
+
+        self.data = data[category_type]
+        self.dataX_1 = self.data[x_name_1]
+        self.dataX_2 = self.data[x_name_2]
+        self.dataY = self.data[y_name]
+
+        self.tokenizer = Tokenizer(language, max_len)
+
+    def __len__(self):
+        return self.data_len
+
+    def __getitem__(self, index):
+        encoded_datax_1 = self.tokenizer.encode(self.dataX_1[index])
+        encoded_datax_2 = self.tokenizer.encode(self.dataX_2[index])
+        encoded_datay = self.tokneizer.encode(self.dataY[index])
+
+        # encoded_datax SEP .
+        batch = {}
+        batch['encoder_input_ids'] = encoded_datax.input_ids
+        batch['encoder_attention_mask'] = encoded_datax.attention_mask  # will be generated in model as well
+        batch['decoder_input_ids'] = encoded_datay.input_ids
+        batch['labels'] = encoded_datay.input_ids.clone()
+        batch['decoder_attention_mask'] = encoded_datay.attention_mask  # will be generated in model as well
+
+        return batch
+
+
+
+class FineTuneDataset_total_Atype():
+    def __init__(self, language, max_len,
+                 dataset_name, dataset_type, category_type,
+                 x_name, y_name, percentage=None):
+        self.traindata = FineTuneDataset_Atype(language, max_len,
+                                         dataset_name, dataset_type, 'train', category_type,
+                                         x_name, y_name, percentage)
+        self.valdata = FineTuneDataset_Atype(language, max_len,
+                                       dataset_name, dataset_type, 'validation', category_type,
+                                       x_name, y_name, percentage)
+        self.testdata = FineTuneDataset_Atype(language, max_len,
+                                        dataset_name, dataset_type, 'test', category_type,
+                                        x_name, y_name, percentage)
     
-    def getTrainData(self):
+    def getTrainData_finetune_Atype(self):
         return self.traindata
     
-    def getValData(self):
+    def getValData_finetune_Atype(self):
         return self.valdata
     
-    def getTestData(self):
+    def getTestData_finetune_Atype(self):
+        return self.testdata
+
+
+class FineTuneDataset_total_Btype():
+    def __init__(self, language, max_len,
+                 dataset_name, dataset_type, category_type,
+                 x_name_1, x_name_2, y_name, percentage=None):
+        self.traindata = FineTuneDataset_Btype(language, max_len,
+                                         dataset_name, dataset_type, 'train', category_type,
+                                         x_name_1, x_name_2, y_name, percentage)
+        self.valdata = FineTuneDataset_Btype(language, max_len,
+                                       dataset_name, dataset_type, 'validation', category_type,
+                                       x_name_1, x_name_2, y_name, percentage)
+        self.testdata = FineTuneDataset_Btype(language, max_len,
+                                        dataset_name, dataset_type, 'test', category_type,
+                                        x_name_1, x_name_2, y_name, percentage)
+
+    def getTrainData_finetune_Btype(self):
+        return self.traindata
+
+    def getValData_finetune_Btype(self):
+        return self.valdata
+
+    def getTestData_finetune_Btype(self):
         return self.testdata
