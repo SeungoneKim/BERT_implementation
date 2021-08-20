@@ -1,0 +1,21 @@
+"""
+training / validation / test : cola, sst2, mrpc, qqp, stsb, mnli, rte, wnli (8개)
+validation / test : mnli_mm, mnli_m (2개)
+test : ax (1개)
+"""
+
+"""
+[ Category of Datasets ]
+        
+glue data : cola, sst2, mrpc, 
+features : ['sentence', 'label', 'idx']
+        
+glue data : stsb, rte, wnli
+features : ['sentence1', 'sentence2', 'label', 'idx']
+        
+glue data : qqp
+feature : ['question1', 'question2', 'label', idx']
+        
+glue data : mnli, mnli_mm, mnli_m, ax
+features: ['premise', 'hypothesis', 'label', 'idx'],
+"""
